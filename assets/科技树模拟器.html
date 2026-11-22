@@ -1824,7 +1824,9 @@ function flush() {
   saveTimer = null;
   try {
     localStorage.setItem(STORE, JSON.stringify({ v: 6, current: DB.current, saves: DB.saves }));
-  } catch (e) { /* 空间不足忽略 */ }
+  } catch (e) {
+    if (!flush.warned) { flush.warned = true; toast('保存失败：存储空间可能已满，请导出存档备份'); }
+  }
 }
 
 /* ============================================================
@@ -2283,6 +2285,11 @@ function usePulse() {
 /* ============================================================
    主循环
    ============================================================ */
+let tickN = 0;
+function panelEditing() {
+  const a = document.activeElement;
+  return !!(a && a.closest && a.closest('#panel') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+}
 function tick() {
   const s = cur();
   if (!s) return;
@@ -2310,10 +2317,10 @@ function tick() {
 
   s.updated = Date.now();
   updateHud();
-  if (ui.panelOpen) renderPanel();
+  if (ui.panelOpen && !panelEditing()) renderPanel();
   if (!$('overviewPage').hidden) renderOverview(true);
   if (s.events.active) renderEventCard();
-  persist();
+  if (++tickN % 5 === 0) persist();
 }
 
 /* ============================================================
@@ -4605,6 +4612,8 @@ function bindEvents() {
   });
 
   window.addEventListener('beforeunload', flush);
+  window.addEventListener('pagehide', flush);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
 }
 
 /* ============================================================
